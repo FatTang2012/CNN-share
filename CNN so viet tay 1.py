@@ -13,6 +13,7 @@ def cross_entropy_loss(y_true, y_pred):
 
 def max_pooling2d(pooling_size, kernel_size, img, p, s, active_func):
     matrix = conv2d(kernel_size, img, s, p, active_func)
+    pooling_size = np.array(pooling_size)  # Chuyển đổi thành mảng NumPy
     result = np.zeros((int(matrix.shape[0] / pooling_size[0]), int(matrix.shape[1] / pooling_size[1])))
     for row in range(int(matrix.shape[0] / pooling_size[0])):
         for col in range(int(matrix.shape[1] / pooling_size[1])):
@@ -23,7 +24,9 @@ def max_pooling2d(pooling_size, kernel_size, img, p, s, active_func):
 def conv2d(kernel, img, s, p, active_func):
     print("Image shape:", img.shape)  # Thêm dòng này để kiểm tra kích thước thực sự của ảnh
     height, width = img.shape[:2]
-    kernel_height, kernel_width = kernel.shape
+    kernel = np.array(kernel)
+    kernel_height = kernel.shape[0]
+    kernel_width = 3  # hoặc sử dụng một giá trị cố định
     matrix = np.zeros((int((height - kernel_height + 2 * p) / s + 1), int((width - kernel_width + 2 * p) / s + 1)))
     for row in range(int((height - kernel_height + 2 * p) / s + 1)):
         for col in range(int((width - kernel_width + 2 * p) / s + 1)):
@@ -67,8 +70,10 @@ for epoch in range(epochs):
         x = train_images[i]
         y_true = train_labels[i]
         # Lan truyền xuôi
+        # Gọi hàm conv2d
         conv1 = conv2d(kernel1, x, s=1, p=0, active_func="relu")
-        pool1 = max_pooling2d((2, 2), (2, 2), conv1, p=0, s=1, active_func="relu")
+        # Gọi hàm max_pooling2d
+        pool1 = max_pooling2d(np.array((2, 2)), np.array((2, 2)), conv1, p=0, s=1, active_func="relu")
         conv2 = conv2d(kernel2, pool1, s=1, p=0, active_func="relu")
         pool2 = max_pooling2d((2, 2), (2, 2), conv2, p=0, s=1, active_func="relu")
         conv3 = conv2d(kernel3, pool2, s=1, p=0, active_func="relu")
