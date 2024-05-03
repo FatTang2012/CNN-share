@@ -13,7 +13,7 @@ def cross_entropy_loss(y_true, y_pred):
 
 def max_pooling2d(pooling_size, kernel_size, img, p, s, active_func):
     matrix = conv2d(kernel_size, img, s, p, active_func)
-    pooling_size = np.array(pooling_size)  # Chuyển đổi thành mảng NumPy
+    pooling_size = np.array(pooling_size)  
     result = np.zeros((int(matrix.shape[0] / pooling_size[0]), int(matrix.shape[1] / pooling_size[1])))
     for row in range(int(matrix.shape[0] / pooling_size[0])):
         for col in range(int(matrix.shape[1] / pooling_size[1])):
@@ -22,14 +22,18 @@ def max_pooling2d(pooling_size, kernel_size, img, p, s, active_func):
     return result
 
 def conv2d(kernel, img, s, p, active_func):
-    print("Image shape:", img.shape)  # Thêm dòng này để kiểm tra kích thước thực sự của ảnh
+    print("Image shape:", img.shape)  
     height, width = img.shape[:2]
     kernel = np.array(kernel)
     kernel_height = kernel.shape[0]
-    kernel_width = 3  # hoặc sử dụng một giá trị cố định
-    matrix = np.zeros((int((height - kernel_height + 2 * p) / s + 1), int((width - kernel_width + 2 * p) / s + 1)))
-    for row in range(int((height - kernel_height + 2 * p) / s + 1)):
-        for col in range(int((width - kernel_width + 2 * p) / s + 1)):
+    kernel_width = 3  # Kernel có hình dạng một chiều
+    output_height = (height + 2 * p - kernel_height) // s + 1
+    output_width = (width + 2 * p - kernel_width) // s + 1
+    if output_height <= 0 or output_width <= 0:
+        raise ValueError("Invalid output dimensions. Adjust padding or kernel size.")
+    matrix = np.zeros((output_height, output_width))
+    for row in range(output_height):
+        for col in range(output_width):
             sub_img = img[row * s: row * s + kernel_height, col * s: col * s + kernel_width]
             if sub_img.shape != kernel.shape:
                 continue
@@ -38,8 +42,10 @@ def conv2d(kernel, img, s, p, active_func):
                 matrix[row, col] = relu(matrix[row, col])
     return matrix
 
+
+
 def flatten(array):
-    return array.flatten()
+    return array.reshape(-1)
 
 def dense(x, weights, biases):
     return np.dot(x, weights) + biases
@@ -57,9 +63,7 @@ kernel1 = np.random.randn(3, 3)
 bias1 = np.zeros((1,))
 kernel2 = np.random.randn(3, 3)
 bias2 = np.zeros((1,))
-kernel3 = np.random.randn(3, 3)
-bias3 = np.zeros((1,))
-weights_fc = np.random.randn(64, 10)
+weights_fc = np.random.randn(100, 10)
 biases_fc = np.zeros((10,))
 
 epochs = 10
@@ -69,15 +73,13 @@ for epoch in range(epochs):
     for i in range(len(train_images)):
         x = train_images[i]
         y_true = train_labels[i]
-        # Lan truyền xuôi
-        # Gọi hàm conv2d
+        
         conv1 = conv2d(kernel1, x, s=1, p=0, active_func="relu")
         # Gọi hàm max_pooling2d
         pool1 = max_pooling2d(np.array((2, 2)), np.array((2, 2)), conv1, p=0, s=1, active_func="relu")
         conv2 = conv2d(kernel2, pool1, s=1, p=0, active_func="relu")
-        pool2 = max_pooling2d((2, 2), (2, 2), conv2, p=0, s=1, active_func="relu")
-        conv3 = conv2d(kernel3, pool2, s=1, p=0, active_func="relu")
-        flattened = flatten(conv3)
+        flattened = flatten(conv2)
+        print("Kích thước của flattened:", flattened.shape)
         logits = dense(flattened, weights_fc, biases_fc)
         probs = softmax(logits)
         
@@ -87,9 +89,7 @@ for epoch in range(epochs):
         # Lan truyền ngược
         d_logits = probs - y_true
         d_flattened = np.dot(d_logits, weights_fc.T)
-        d_conv3 = d_flattened.reshape(conv3.shape)
-        d_pool2 = np.zeros(pool2.shape)
-        d_conv2 = np.zeros(conv2.shape)
+        d_conv2 = d_flattened.reshape(conv2.shape)
         d_pool1 = np.zeros(pool1.shape)
         d_conv1 = np.zeros(conv1.shape)
 
@@ -99,14 +99,8 @@ for epoch in range(epochs):
         weights_fc -= learning_rate * d_weights_fc
         biases_fc -= learning_rate * d_biases_fc
 
-        # Cập nhật trọng số và bias của convolutional layer 3
-        d_kernel3 = conv2d(flatten(pool2).T, d_conv3, s=1, p=0, active_func="relu")
-        d_bias3 = np.sum(d_conv3)
-        kernel3 -= learning_rate * d_kernel3
-        bias3 -= learning_rate * d_bias3
-
         # Cập nhật trọng số và bias của convolutional layer 2
-        d_kernel2 = conv2d(flatten(pool1).T, d_conv2, s=1, p=0, active_func="relu")
+        d_kernel2 = conv2d(pool1, d_conv2, s=1, p=0, active_func="relu")
         d_bias2 = np.sum(d_conv2)
         kernel2 -= learning_rate * d_kernel2
         bias2 -= learning_rate * d_bias2
